@@ -5,7 +5,7 @@
       </slot>
     </div>
     <div class="dots">
-      <span class="dot"></span>
+      <span class="dot" v-for="(dot,index) in dots" :class="{active:currentIndex==index}"></span>
     </div>
   </div>
 </template>
@@ -13,6 +13,12 @@
   import BScroll from 'better-scroll'
   import {addClass} from 'common/js/dom'
   export default{
+    data() {
+      return {
+        dots: [],
+        currentIndex: 0
+      }
+    },
     props: {
       loop: {
         type: Boolean,
@@ -30,13 +36,24 @@
     mounted() {
       setTimeout(() => {
         this._setSliderWidth()
+        this._initDot()
         this._initSlider()
+        if (this.autoPlay === true) {
+          this._play()
+        }
       }, 20)
+
+      window.addEventListener('resize', () => {
+        if (!this.slider) {
+          return
+        }
+        this._setSliderWidth(true)
+        this.slider.refresh()
+      })
     },
     methods: {
-      _setSliderWidth() {
+      _setSliderWidth(isResize) {
         this.children = this.$refs.sliderGroup.children
-
         let width = 0
         let sliderWidth = this.$refs.slider.clientWidth
         for (let i = 0; i < this.children.length; i++) {
@@ -45,7 +62,7 @@
           child.style.width = sliderWidth + 'px'
           width += sliderWidth
         }
-        if (this.loop) {
+        if (this.loop && !isResize) {
           width += 2 * sliderWidth
         }
         this.$refs.sliderGroup.style.width = width + 'px'
@@ -61,6 +78,30 @@
           snapSpeed: 400,
           click: true
         })
+        this.slider.on('scrollEnd', () => {
+          let pageIndex = this.slider.getCurrentPage().pageX
+          if (this.loop) {
+            pageIndex -= 1
+          }
+          this.currentIndex = pageIndex
+
+          if (this.autoPlay) {
+            clearTimeout(this.timer)
+            this._play()
+          }
+        })
+      },
+      _initDot() {
+        this.dots = new Array(this.children.length)
+      },
+      _play() {
+        let pageIndex = this.currentIndex + 1
+        if (this.loop) {
+          pageIndex += 1
+        }
+        this.timer = setTimeout(() => {
+          this.slider.goToPage(pageIndex, 0, 400)
+        }, this.interval)
       }
     }
   }
@@ -69,6 +110,7 @@
   @import "~common/stylus/variable"
   .slider
     min-height: 1px
+    position: relative
     .slider-group
       position: relative
       overflow: hidden
